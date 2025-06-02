@@ -1,7 +1,7 @@
 use super::{Entry, Key};
 use core::hash::{BuildHasher, Hash};
-use hashbrown::hash_map::DefaultHashBuilder;
-use hashbrown::raw::RawTable;
+use hashbrown::DefaultHashBuilder;
+use hashbrown::HashTable;
 
 pub trait Equivalent<K: ?Sized> {
 	fn equivalent(&self, key: &K) -> bool;
@@ -146,14 +146,14 @@ impl<'a> IntoIterator for &'a Indexes {
 #[derive(Clone)]
 pub struct IndexMap<S = DefaultHashBuilder> {
 	hash_builder: S,
-	table: RawTable<Indexes>,
+	table: HashTable<Indexes>,
 }
 
 impl<S: Default> IndexMap<S> {
 	fn default() -> Self {
 		Self {
 			hash_builder: S::default(),
-			table: RawTable::default(),
+			table: HashTable::default(),
 		}
 	}
 }
@@ -167,11 +167,9 @@ impl<S> IndexMap<S> {
 	}
 
 	pub fn contains_duplicate_keys(&self) -> bool {
-		unsafe {
-			for bucket in self.table.iter() {
-				if bucket.as_ref().is_redundant() {
-					return true;
-				}
+		for bucket in self.table.iter() {
+			if bucket.is_redundant() {
+				return true;
 			}
 		}
 
@@ -185,7 +183,7 @@ impl<S: BuildHasher> IndexMap<S> {
 		Q: ?Sized + Hash + Equivalent<Key>,
 	{
 		let hash = self.hash_builder.hash_one(key);
-		self.table.get(hash, equivalent_key(entries, key))
+		self.table.find(hash, equivalent_key(entries, key))
 	}
 
 	/// Associates the given `key` to `index`.
@@ -194,13 +192,13 @@ impl<S: BuildHasher> IndexMap<S> {
 	pub fn insert(&mut self, entries: &[Entry], index: usize) -> bool {
 		let key = &entries[index].key;
 		let hash = self.hash_builder.hash_one(key);
-		match self.table.get_mut(hash, equivalent_key(entries, key)) {
+		match self.table.find_mut(hash, equivalent_key(entries, key)) {
 			Some(indexes) => {
 				indexes.insert(index);
 				false
 			}
 			None => {
-				self.table.insert(
+				self.table.insert_unique(
 					hash,
 					Indexes::new(index),
 					make_hasher::<S>(entries, &self.hash_builder),
@@ -214,32 +212,26 @@ impl<S: BuildHasher> IndexMap<S> {
 	pub fn remove(&mut self, entries: &[Entry], index: usize) {
 		let key = &entries[index].key;
 		let hash = self.hash_builder.hash_one(key);
-		if let Some(bucket) = self.table.find(hash, equivalent_key(entries, key)) {
-			let indexes = unsafe { bucket.as_mut() };
-
-			if !indexes.remove(index) {
-				unsafe { self.table.remove(bucket) };
+		if let Some(bucket) = self.table.find_mut(hash, equivalent_key(entries, key)) {
+			if !bucket.remove(index) {
+				if let Ok(entry) = self.table.find_entry(hash, equivalent_key(entries, key)) {
+					entry.remove();
+				}
 			}
 		}
 	}
 
 	/// Decreases all index greater than `index` by one everywhere in the table.
 	pub fn shift_down(&mut self, index: usize) {
-		unsafe {
-			for bucket in self.table.iter() {
-				let indexes = bucket.as_mut();
-				indexes.shift_down(index)
-			}
+		for indexes in self.table.iter_mut() {
+			indexes.shift_down(index)
 		}
 	}
 
 	/// Increases all index greater than or equal to `index` by one everywhere in the table.
 	pub fn shift_up(&mut self, index: usize) {
-		unsafe {
-			for bucket in self.table.iter() {
-				let indexes = bucket.as_mut();
-				indexes.shift_up(index)
-			}
+		for indexes in self.table.iter_mut() {
+			indexes.shift_up(index)
 		}
 	}
 

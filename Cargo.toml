@@ -27,21 +27,20 @@ all-features = true
 
 [dependencies]
 json-number = { version = "0.4", features = [ "smallnumberbuf" ] }
-smallvec = "1.9"
+smallvec = "1"
 smallstr = "0.3"
-locspan = "0.8.2"
-locspan-derive = "0.6"
-indexmap = "1.9.1"
+locspan = "0.9"
+indexmap = "2"
 decoded-char = "0.1"
-hashbrown = { version = "0.12.1", features = [ "raw" ] }
-contextual = { version = "0.1.1", optional = true }
-ryu-js = { version = "0.2.2", optional = true }
-serde = { version = "1.0", optional = true }
-serde_json = { version = "1.0", optional = true }
-utf8-decode = "1.0.1"
+hashbrown = "0.15"
+contextual = { version = "0.1", optional = true }
+ryu-js = { version = "1", optional = true }
+serde = { version = "1", optional = true }
+serde_json = { version = "1", optional = true }
+utf8-decode = "1"
 
 [dev-dependencies]
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1", features = [ "derive" ] }
 
 [[example]]
 name = "serde"

@@ -1,7 +1,5 @@
 use core::hash::{Hash, Hasher};
 
-use locspan::Meta;
-
 /// Wrapper to view a value without considering the order of
 /// the objects entries.
 #[derive(Debug)]
@@ -22,9 +20,9 @@ pub trait UnorderedPartialEq {
 	fn unordered_eq(&self, other: &Self) -> bool;
 }
 
-impl<T: UnorderedPartialEq, M: PartialEq> UnorderedPartialEq for Meta<T, M> {
+impl<T: UnorderedPartialEq, M: PartialEq> UnorderedPartialEq for (T, M) {
 	fn unordered_eq(&self, other: &Self) -> bool {
-		self.metadata() == other.metadata() && self.value().unordered_eq(other.value())
+		self.1 == other.1 && self.0.unordered_eq(&other.0)
 	}
 }
 
@@ -42,7 +40,7 @@ impl<T: UnorderedPartialEq> PartialEq for Unordered<T> {
 
 pub trait UnorderedEq: UnorderedPartialEq {}
 
-impl<T: UnorderedEq, M: Eq> UnorderedEq for Meta<T, M> {}
+impl<T: UnorderedEq, M: Eq> UnorderedEq for (T, M) {}
 
 impl<T: UnorderedEq> Eq for Unordered<T> {}
 
